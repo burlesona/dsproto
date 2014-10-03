@@ -61,7 +61,7 @@ module Docserver
         self.new(data)
       end
 
-      def where(hash)
+      def where(hash={})
         hash[:_id] = hash.delete(:id) if hash[:id]
         data = collection.find(hash)
         data.map do |d|
@@ -69,6 +69,10 @@ module Docserver
           d[:id] = d.delete(:_id)
           self.new(d)
         end
+      end
+
+      def all
+        where()
       end
 
       def exists?(id)
