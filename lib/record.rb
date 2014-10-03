@@ -26,11 +26,7 @@ module Docserver
       if @attributes[:children]
         @attributes[:children]
       elsif @attributes[:child_ids]
-        children = []
-        @attributes[:child_ids].each do |cid|
-          children << Element.find(cid)
-        end
-        children
+        Element.where(id: {'$in' => @attributes[:child_ids]})
       end
     end
 
