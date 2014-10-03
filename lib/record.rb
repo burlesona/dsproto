@@ -61,12 +61,22 @@ module Docserver
         self.new(data)
       end
 
+      def where(hash)
+        hash[:_id] = hash.delete(:id) if hash[:id]
+        data = collection.find(hash)
+        data.map do |d|
+          d.symbolize_keys!
+          d[:id] = d.delete(:_id)
+          self.new(d)
+        end
+      end
+
       def exists?(id)
         !!collection.find_one(_id: id)
       end
 
       def collection
-        db.collection( name.demodulize.downcase )
+        db.collection( name.demodulize.downcase.pluralize )
       end
     end
   end
