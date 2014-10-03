@@ -15,11 +15,12 @@ module Docserver
 
       # Get Document TOC
       get '/:doc_id/toc/?' do
+        json Document.find(params[:doc_id].to_i).toc
       end
 
       # Read Element
       get '/:doc_id/elements/:element_id' do
-        json Docserver::Element.find(params[:element_id])
+        json Element.find(params[:element_id])
       end
 
       # Get options for elements (empty models)

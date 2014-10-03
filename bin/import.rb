@@ -73,7 +73,7 @@ end
 
 # Create lookup of chapter sections:
 toc_hash = toc.each_with_object({}) do |c,hash|
-  hash[ c[:id] ] = c[:children].map{|s| s[:id]}
+  hash[ c[:id] ] = c
 end
 
 # Since the Scholar API is still using varying types
@@ -83,15 +83,20 @@ end
 # create element function (above).
 doc.child_ids.each do |cid|
   puts "Importing #{cid}"
+  toc_data = toc_hash[cid]
   edata = get("elements/#{cid}")
   edata[:type] = "Section"
+  edata[:domain] = toc_data[:domain]
+  edata[:previewable] = toc_data[:previewable]
   # If element is in the TOC Hash it is a chapter
   # and the sections need to be appended manually
-  if sections = toc_hash[ edata[:id] ]
-    sections.each do |sid|
-      puts "Importing #{sid}"
-      child = get("elements/#{sid}")
+  if sections = toc_data[:children]
+    sections.each do |s|
+      puts "Importing #{s[:id]}"
+      child = get("elements/#{s[:id]}")
       child[:type] = "Section"
+      child[:domain] = s[:domain]
+      child[:previewable] = s[:previewable]
       edata[:children] << child
     end
   end

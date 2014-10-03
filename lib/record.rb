@@ -10,9 +10,10 @@ module Docserver
       @children ||= load_children!
     end
 
-    def to_hash
+    def to_hash &block
       hash = @attributes.dup
-      hash[:children] = children.map(&:to_hash) if children
+      block ||= ->(c){ c.to_hash }
+      hash[:children] = children.map(&block) if children
       hash
     end
 
