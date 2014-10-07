@@ -21,20 +21,42 @@ module Docserver
       JSON.generate(self.to_hash)
     end
 
+    def save
+      data = @attributes.dup
+      id = data.delete(:id)
+      collection.update({_id: id}, data)
+    end
+
     private
+    def collection
+      self.class.collection
+    end
+    # Note this method refrences the Element class
+    # directly so that Document will know its children
+    # are of the Element type. This may not be a good idea,
+    # perhaps there should be a root element instead and
+    # therefore Document doesn't have "children" but instead
+    # has a single "Root"
     def load_children!
       if @attributes[:children]
         @attributes[:children]
-      elsif @attributes[:child_ids]
-        Element.where(id: {'$in' => @attributes[:child_ids]})
+      elsif ids = @attributes[:child_ids]
+        Element.where(id: {'$in' => ids}).sort_by{|e| ids.index(e.id)}
       end
     end
 
     def method_missing(name, *args, &block)
+      # Getter
       if a = @attributes[name]
         a
       else
-        super
+        # Setter
+        a = name.to_s.gsub("=","").to_sym
+        if @attributes[a]
+          @attributes[a] = args[0]
+        else
+          super
+        end
       end
     end
 
