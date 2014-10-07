@@ -6,15 +6,8 @@ module Docserver
       @attributes = attrs
     end
 
-    def children
-      @children ||= load_children!
-    end
-
-    def to_hash &block
-      hash = @attributes.dup
-      block ||= ->(c){ c.to_hash }
-      hash[:children] = children.map(&block) if children
-      hash
+    def to_hash
+      @attributes.dup
     end
 
     def to_json(opts={})
@@ -30,19 +23,6 @@ module Docserver
     private
     def collection
       self.class.collection
-    end
-    # Note this method refrences the Element class
-    # directly so that Document will know its children
-    # are of the Element type. This may not be a good idea,
-    # perhaps there should be a root element instead and
-    # therefore Document doesn't have "children" but instead
-    # has a single "Root"
-    def load_children!
-      if @attributes[:children]
-        @attributes[:children]
-      elsif ids = @attributes[:child_ids]
-        Element.where(id: {'$in' => ids}).sort_by{|e| ids.index(e.id)}
-      end
     end
 
     def method_missing(name, *args, &block)

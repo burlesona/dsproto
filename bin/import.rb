@@ -41,16 +41,57 @@ end
 # Run anything you want before the import script executes.
 binding.pry
 
-# Create Document Data
+# Fetch and Format Document Data
 book_data = get('toc')
 toc = book_data.delete(:toc)
+top_level_ids = toc.map{|c| c[:id]}
+toc_hash = toc.each_with_object({}) do |c,hash|
+  hash[ c[:id] ] = c
+end
+
+# Create Document
 book_data[:id] = $options.book_id.to_i
-book_data[:child_ids] = toc.map{|c| c[:id]}
 doc = Docserver::Document.create(book_data)
 
-def create_element(edata,depth:1)
-  edata[:book_id] = $options.book_id
 
+
+
+# Since the Scholar API is still using varying types
+# for section elements (chapter, article, appendix etc.),
+# normalize that on import.
+
+# Here we build a complete hash representation of the document
+root = {
+  id: "#{doc.id}-root",
+  book_id: doc.id,
+  type: "Section",
+  depth: 0,
+  children: []
+}
+top_level_ids.each do |cid|
+  puts "Importing #{cid}"
+  toc_data = toc_hash[cid]
+  element = get("elements/#{cid}")
+  element[:type] = "Section"
+  element[:domain] = toc_data[:domain]
+  element[:previewable] = toc_data[:previewable]
+  # If element is in the TOC Hash it is a chapter
+  # and the sections need to be appended manually
+  if sections = toc_data[:children]
+    sections.each do |s|
+      puts "Importing #{s[:id]}"
+      child = get("elements/#{s[:id]}")
+      child[:type] = "Section"
+      child[:domain] = s[:domain]
+      child[:previewable] = s[:previewable]
+      element[:children] << child
+    end
+  end
+  root[:children] << element
+end
+
+def create_element(edata,depth:0)
+  edata[:book_id] = $options.book_id
   # First create elements for all children of sections
   if edata[:type] == "Section"
     edata[:depth] = depth
@@ -71,37 +112,8 @@ def create_element(edata,depth:1)
   Docserver::Element.create(edata)
 end
 
-# Create lookup of chapter sections:
-toc_hash = toc.each_with_object({}) do |c,hash|
-  hash[ c[:id] ] = c
-end
-
-# Since the Scholar API is still using varying types
-# for section elements (chapter, article, appendix etc.),
-# normalize that on import.
-# The depth level for all sections will be set in the
-# create element function (above).
-doc.child_ids.each do |cid|
-  puts "Importing #{cid}"
-  toc_data = toc_hash[cid]
-  edata = get("elements/#{cid}")
-  edata[:type] = "Section"
-  edata[:domain] = toc_data[:domain]
-  edata[:previewable] = toc_data[:previewable]
-  # If element is in the TOC Hash it is a chapter
-  # and the sections need to be appended manually
-  if sections = toc_data[:children]
-    sections.each do |s|
-      puts "Importing #{s[:id]}"
-      child = get("elements/#{s[:id]}")
-      child[:type] = "Section"
-      child[:domain] = s[:domain]
-      child[:previewable] = s[:previewable]
-      edata[:children] << child
-    end
-  end
-  create_element(edata,depth: 1)
-end
+create_element(root)
 
 binding.pry
+
 
