@@ -14,7 +14,7 @@ optparser = OptionParser.new do |opts|
   opts.banner = 'Usage: ruby import.rb [options]'
 
   opts.on('-b', '--book=', 'Book Id') do |b|
-    $options.book_id = b.to_i
+    $options.document_id = b.to_i
   end
 
   opts.on('-s', '--scholar=', 'Scholar API URL') do |s|
@@ -28,11 +28,11 @@ optparser = OptionParser.new do |opts|
 end
 optparser.parse!
 
-abort 'Must specify book ID' if $options.book_id.nil?
+abort 'Must specify book ID' if $options.document_id.nil?
 
 # Define Utility Methods
 def get(path,opts={})
-  url = File.join($options.scholar_url,$options.book_id.to_s,path)
+  url = File.join($options.scholar_url,$options.document_id.to_s,path)
   opts.merge({accept: :json})
   response = RestClient.get(url,opts)
   JSON.parse(response.body, symbolize_names: true) if response.code == 200
@@ -47,7 +47,7 @@ toc_hash = toc.each_with_object({}) do |c,hash|
 end
 
 # Create Document
-doc_data[:_id] = $options.book_id.to_i
+doc_data[:_id] = $options.document_id.to_i
 doc = Docserver::Document.create(doc_data)
 
 
@@ -60,7 +60,7 @@ doc = Docserver::Document.create(doc_data)
 # Here we build a complete hash representation of the document
 root = {
   id: "#{doc.id}-root",
-  book_id: doc.id,
+  document_id: doc.id,
   type: "Section",
   depth: 0,
   children: []
@@ -88,7 +88,7 @@ top_level_ids.each do |cid|
 end
 
 def create_element(edata,depth:0)
-  edata[:document_id] = $options.book_id
+  edata[:document_id] = $options.document_id
   # First create elements for all children of sections
   if edata[:type] == "Section"
     edata[:depth] = depth

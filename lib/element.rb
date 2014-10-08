@@ -1,5 +1,12 @@
 require_relative 'record'
 
+# MISSING METHODS:
+# insert_child({element, position, reference_id?})
+# ^ this should accomplish a move by removing any previous references as well
+# delete!
+# ^ this should update any parent references as well
+
+
 module Docserver
   class Element < Record
 
@@ -19,7 +26,7 @@ module Docserver
 
     def parent
       @parent ||= self.class.where({
-        book_id: book_id,
+        document_id: document_id,
         child_ids: id
       }).first
     end
