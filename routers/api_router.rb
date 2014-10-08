@@ -8,39 +8,61 @@ module Docserver
 
     # Document Routes
     namespace '/documents' do
+      before do
+        headers "Content-Type" => "application/json"
+        # The following would be necessary to allow content to be fetched directly by JS
+        # rather than being relayed by a proxy server.
+        # headers "Access-Control-Allow-Origin" => "*"
+        # headers "Access-Control-Allow-Methods" => "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        # headers "Access-Control-Allow-Headers" => "Accept, Content-Type"
+      end
+
       # Get Document info?
       get '/:doc_id/?' do
-        "Document info for #{params[:doc_id]}"
+        json document
       end
 
       # Get Document TOC
       get '/:doc_id/toc/?' do
-        json Document.find(params[:doc_id].to_i).toc
+        json document.toc
       end
 
       # Read Element
-      get '/:doc_id/elements/:element_id' do
+      get '/:doc_id/elements/:element_id/?' do
         json Element.find(params[:element_id])
       end
 
       # Get options for elements (empty models)
-      options '/:doc_id/elements' do
+      options '/:doc_id/elements/?' do
+        # TBA
       end
 
       # Create Element
-      post '/:doc_id/elements' do
+      # Requires element, position, reference_id
+      post '/:doc_id/elements/?' do
+        # Document handles this to deal with position, indexing and such
+        json document.create_element( request_data )
       end
 
       # Update Element
-      put '/:doc_id/elements/:element_id' do
+      # Requires element
+      put '/:doc_id/elements/:element_id/?' do
+        el = Element.find(params[:element_id])
+        json el.update( request_data )
       end
 
       # Move Element
-      post '/:doc_id/elements/move' do
+      # Requires element_id, position, reference_id
+      post '/:doc_id/elements/move/?' do
+        json document.move_element( request_data )
+        204
       end
 
       # Delete Element
-      delete '/:doc_id/elements/:element_id' do
+      delete '/:doc_id/elements/:element_id/?' do
+        el = Element.find(params[:element_id])
+        el.delete!
+        204
       end
 
       # (why can't a PUT on the element work for this?)
@@ -57,6 +79,15 @@ module Docserver
       #Upload Document
       #post '/:doc_id/upload/:reference_id' do
       #end
+    end
+
+    def document
+      @document ||= Document.find(params[:doc_id].to_i)
+    end
+
+    def request_data
+      request.body.rewind
+      JSON.parse request.body.read, symbolize_names: true
     end
 
     error do |e|
