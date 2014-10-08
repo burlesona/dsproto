@@ -38,20 +38,17 @@ def get(path,opts={})
   JSON.parse(response.body, symbolize_names: true) if response.code == 200
 end
 
-# Run anything you want before the import script executes.
-binding.pry
-
 # Fetch and Format Document Data
-book_data = get('toc')
-toc = book_data.delete(:toc)
+doc_data = get('toc')
+toc = doc_data.delete(:toc)
 top_level_ids = toc.map{|c| c[:id]}
 toc_hash = toc.each_with_object({}) do |c,hash|
   hash[ c[:id] ] = c
 end
 
 # Create Document
-book_data[:id] = $options.book_id.to_i
-doc = Docserver::Document.create(book_data)
+doc_data[:_id] = $options.book_id.to_i
+doc = Docserver::Document.create(doc_data)
 
 
 
@@ -91,7 +88,7 @@ top_level_ids.each do |cid|
 end
 
 def create_element(edata,depth:0)
-  edata[:book_id] = $options.book_id
+  edata[:document_id] = $options.book_id
   # First create elements for all children of sections
   if edata[:type] == "Section"
     edata[:depth] = depth
@@ -109,7 +106,7 @@ def create_element(edata,depth:0)
   end
   # Create the element after handling its children
   # Non-section children become embedded documents
-  Docserver::Element.create(edata)
+  Docserver::Element.import(edata)
 end
 
 create_element(root)

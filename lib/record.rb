@@ -14,10 +14,16 @@ module Docserver
       JSON.generate(self.to_hash)
     end
 
+    def update(hash)
+      @attributes.merge!(hash)
+      save
+    end
+
     def save
       data = @attributes.dup
       id = data.delete(:id)
       collection.update({_id: id}, data)
+      self
     end
 
     private
@@ -41,10 +47,14 @@ module Docserver
     end
 
     class << self
-      def create(data={})
+      def import(data={})
         raise "Please provide an ID\nDATA:\n#{data.inspect}" unless data[:id]
         raise "Record Already Exists:\nDATA:\n#{data.inspect}" if exists?(data[:id])
         data[:_id] = data.delete :id
+        create(data)
+      end
+
+      def create(data={})
         collection.insert data
         find( data[:_id] )
       end
