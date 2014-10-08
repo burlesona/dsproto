@@ -25,9 +25,11 @@ module Docserver
       ref = Element.find(opts[:reference_id])
       case p = opts[:position]
       when "before","after"
-        ref.parent.insert_child(element_id: el.id, position: p, reference_id: ref.id)
+        ref.parent.insert_child(element: el, position: p, reference_id: ref.id)
       when "prepend","append"
-        ref.insert_child(element_id: el.id, position: p)
+        ref.insert_child(element: el, position: p)
+      else
+        raise "Invalid position given."
       end
     end
   end

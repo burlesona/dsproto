@@ -1,9 +1,5 @@
 require_relative 'record'
 
-# MISSING METHODS:
-# insert_child({element, position, reference_id?})
-# ^ this should accomplish a move by removing any previous references as well
-
 module Docserver
   class Element < Record
 
@@ -21,16 +17,53 @@ module Docserver
       type == "Section"
     end
 
-    # Note: if there is no parent, this seems to return a random record?
-    def parent
-      @parent ||= self.class.where({
-        document_id: document_id,
-        child_ids: id
-      }).first
+    # Note: if there is no parent, this can return a random record?
+    def parent(reload:false)
+      if reload || !defined?(@parent)
+        @parent = self.class.where({
+          document_id: document_id,
+          child_ids: id
+        }).first
+      end
+      @parent
     end
 
     def children
       @children ||= load_children!
+    end
+
+    def remove_child(child)
+      id = child.respond_to?(:id) ? child.id : id
+      child_ids.delete(id)
+      save
+    end
+
+    # Note: This is appropriate for elements that have child references
+    # but it would not work for lower level containers that have embedded children
+    def insert_child(element:,position:,reference_id:nil)
+      # Remove previous parent if present
+      element.parent.remove_child(element) if element.parent
+
+      # Insert child id into child_ids list
+      case position
+      when "before", "after"
+        raise "Reference ID required" unless reference_id
+        raise "Invalid Reference ID" unless child_ids.include?(reference_id)
+        index = child_ids.index(reference_id)
+        index += 1 if position == "after"
+        child_ids.insert(index, element.id)
+      when "prepend"
+        child_ids.unshift element.id
+      when "append"
+        child_ids.push element.id
+      else
+        raise "Invalid position given."
+      end
+
+      # Save element and return updated child instance
+      save
+      element.parent(reload: true) # Maybe better to replace with just an element.reload! call
+      element
     end
 
     # Note: if there are pre-existing instances of the parent element,
@@ -38,8 +71,7 @@ module Docserver
     # parent object instance to reflect the modified database state
     def delete!
       if parent
-        parent.child_ids.delete(id)
-        parent.save
+        parent.remove_child(id)
         @parent = nil
       end
       collection.remove(_id: id)
