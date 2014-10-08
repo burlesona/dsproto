@@ -3,9 +3,6 @@ require_relative 'record'
 # MISSING METHODS:
 # insert_child({element, position, reference_id?})
 # ^ this should accomplish a move by removing any previous references as well
-# delete!
-# ^ this should update any parent references as well
-
 
 module Docserver
   class Element < Record
@@ -24,6 +21,7 @@ module Docserver
       type == "Section"
     end
 
+    # Note: if there is no parent, this seems to return a random record?
     def parent
       @parent ||= self.class.where({
         document_id: document_id,
@@ -33,6 +31,20 @@ module Docserver
 
     def children
       @children ||= load_children!
+    end
+
+    # Note: if there are pre-existing instances of the parent element,
+    # when the child is deleted the parent needs to be reloaded for the
+    # parent object instance to reflect the modified database state
+    def delete!
+      if parent
+        parent.child_ids.delete(id)
+        parent.save
+        @parent = nil
+      end
+      collection.remove(_id: id)
+      self.id = nil
+      true
     end
 
     def to_hash

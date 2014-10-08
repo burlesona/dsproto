@@ -33,12 +33,12 @@ module Docserver
 
     def method_missing(name, *args, &block)
       # Getter
-      if a = @attributes[name]
-        a
+      if @attributes.has_key?(name)
+        @attributes[name]
       else
         # Setter
         a = name.to_s.gsub("=","").to_sym
-        if @attributes[a]
+        if @attributes.has_key?(a)
           @attributes[a] = args[0]
         else
           super
@@ -55,8 +55,17 @@ module Docserver
       end
 
       def create(data={})
+        data[:_id] ||= new_id(data[:document_id])
         collection.insert data
         find( data[:_id] )
+      end
+
+      def new_id(doc_id)
+        loop do
+          ts = Time.now.to_i.to_s(32) + "-" + rand(1000).to_s(32)
+          id = doc_id ? "d#{doc_id}-#{ts}" : "d#{ts}"
+          break id unless exists?(id)
+        end
       end
 
       def find(id)
