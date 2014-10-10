@@ -1,5 +1,5 @@
 db:
-	mongod --dbpath ./mongo_data
+	rethinkdb
 
 app:
 	rerun --pattern "{*.rb,config.ru}" rackup

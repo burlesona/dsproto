@@ -21,14 +21,17 @@ module Docserver
 
     def save
       data = @attributes.dup
-      id = data.delete(:id)
-      collection.update({_id: id}, data)
+      collection do |col,conn|
+        col.get(id).update(data).run(conn)
+      end
       self
     end
 
     private
     def collection
-      self.class.collection
+      self.class.collection do |col, conn|
+        yield col, conn
+      end
     end
 
     def method_missing(name, *args, &block)
@@ -50,14 +53,15 @@ module Docserver
       def import(data={})
         raise "Please provide an ID\nDATA:\n#{data.inspect}" unless data[:id]
         raise "Record Already Exists:\nDATA:\n#{data.inspect}" if exists?(data[:id])
-        data[:_id] = data.delete :id
         create(data)
       end
 
       def create(data={})
-        data[:_id] ||= new_id(data[:document_id])
-        collection.insert data
-        find( data[:_id] )
+        data[:id] ||= new_id(data[:document_id])
+        collection do |col,conn|
+          col.insert(data).run(conn)
+        end
+        find( data[:id] )
       end
 
       def new_id(doc_id)
@@ -69,36 +73,55 @@ module Docserver
       end
 
       def find(id)
-        if result = collection.find_one(_id: id)
-          data = result.symbolize_keys
+        result = nil
+        collection do |col,conn|
+          result = col.get(id).run(conn)
+        end
+        if result
+          data = result.symbolize_keys! # does rethink already do this??
         else
           raise "Record Not Found: #{id.inspect}"
         end
-        data = collection.find_one(_id: id).symbolize_keys
-        data[:id] = data.delete :_id
         self.new(data)
       end
 
       def where(hash={})
-        hash[:_id] = hash.delete(:id) if hash[:id]
-        data = collection.find(hash)
+        data = nil
+        collection do |col,conn|
+          data = col.filter(hash).run(conn)
+        end
+        from_dataset(data)
+      end
+
+      def all
+        data = nil
+        collection do |col,conn|
+          data = col.run(conn)
+        end
+        from_dataset(data)
+      end
+
+      def from_dataset(data)
         data.map do |d|
-          d.symbolize_keys!
-          d[:id] = d.delete(:_id)
+          d.symbolize_keys! # maybe not needed?
           self.new(d)
         end
       end
 
-      def all
-        where()
-      end
-
       def exists?(id)
-        !!collection.find_one(_id: id)
+        data = nil
+        collection do |col,conn|
+          data = col.get(id).run(conn)
+        end
+        !!data
       end
 
       def collection
-        db.collection( name.demodulize.downcase.pluralize )
+        cname = name.demodulize.downcase.pluralize
+        db do |c|
+          col = r.table(cname)
+          yield col, c
+        end
       end
     end
   end

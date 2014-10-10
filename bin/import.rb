@@ -22,8 +22,12 @@ optparser = OptionParser.new do |opts|
   end
 
   opts.on('-c', '--clean', 'Clean the database before import') do
-    Docserver::Document.collection.remove
-    Docserver::Element.collection.remove
+    Docserver::Document.collection do |col,conn|
+      col.delete.run(conn)
+    end
+    Docserver::Element.collection do |col,conn|
+      col.delete.run(conn)
+    end
   end
 end
 optparser.parse!
@@ -47,10 +51,8 @@ toc_hash = toc.each_with_object({}) do |c,hash|
 end
 
 # Create Document
-doc_data[:_id] = $options.document_id.to_i
-doc = Docserver::Document.create(doc_data)
-
-
+doc_data[:id] = $options.document_id.to_i
+doc = Docserver::Document.import(doc_data)
 
 
 # Since the Scholar API is still using varying types

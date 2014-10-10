@@ -8,9 +8,6 @@ GEM
       thread_safe (~> 0.1)
       tzinfo (~> 1.1)
     backports (3.6.1)
-    bson (1.11.1)
-    bson_ext (1.11.1)
-      bson (~> 1.11.1)
     celluloid (0.15.2)
       timers (~> 1.1.0)
     coderay (1.1.0)
@@ -29,8 +26,6 @@ GEM
     method_source (0.8.2)
     mime-types (2.3)
     minitest (5.4.2)
-    mongo (1.11.1)
-      bson (= 1.11.1)
     multi_json (1.10.1)
     netrc (0.7.7)
     pry (0.10.1)
@@ -50,6 +45,8 @@ GEM
     rest-client (1.7.2)
       mime-types (>= 1.16, < 3.0)
       netrc (~> 0.7)
+    rethinkdb (1.15.0.0)
+      json
     sinatra (1.4.5)
       rack (~> 1.4)
       rack-protection (~> 1.4)
@@ -77,13 +74,11 @@ PLATFORMS
 
 DEPENDENCIES
   activesupport
-  bson
-  bson_ext
   dotenv
-  mongo (~> 1.11.1)
   pry
   rerun
   rest-client
+  rethinkdb (~> 1.15.0)
   sinatra
   sinatra-contrib
   thin

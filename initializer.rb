@@ -1,7 +1,8 @@
 require 'dotenv'
 require 'active_support/core_ext/hash'
 require 'active_support/core_ext/string'
-require 'mongo'
+require 'rethinkdb'
+include RethinkDB::Shortcuts
 
 # Configure Environment
 ROOT_DIR = File.dirname(__FILE__)
@@ -9,7 +10,23 @@ Dotenv.load
 
 # Setup DB
 def db
-  @db ||= Mongo::MongoClient.new.db('docserver')
+  c = r.connect db: 'docserver'
+  yield c
+  c.close
+end
+
+db do |c|
+  # Create docserver DB
+  unless r.db_list.run(c).include?('docserver')
+    r.db_create('docserver').run(c)
+  end
+
+  # Create needed tables
+  %w|documents elements|.each do |t|
+    unless r.table_list.run(c).include?(t)
+      r.table_create(t).run(c)
+    end
+  end
 end
 
 # Require Application Files

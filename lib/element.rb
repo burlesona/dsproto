@@ -20,10 +20,13 @@ module Docserver
     # Note: if there is no parent, this can return a random record?
     def parent(reload:false)
       if reload || !defined?(@parent)
-        @parent = self.class.where({
-          document_id: document_id,
-          child_ids: id
-        }).first
+        data = nil
+        collection do |col,conn|
+          data = col.filter do |el|
+            el['child_ids'].contains(id)
+          end.run(conn).first.symbolize_keys
+        end
+        @parent = self.class.new(data)
       end
       @parent
     end
@@ -90,7 +93,11 @@ module Docserver
       if @attributes[:children]
         @attributes[:children]
       elsif ids = @attributes[:child_ids]
-        Element.where(id: {'$in' => ids}).sort_by{|e| ids.index(e.id)}
+        data = nil
+        collection do |col,conn|
+          data = col.get_all(*ids).run(conn)
+        end
+        self.class.from_dataset(data)
       end
     end
   end
