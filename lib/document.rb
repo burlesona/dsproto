@@ -4,9 +4,7 @@ module Docserver
   class Document < Record
 
     def root
-      @root ||= Element.where({
-        document_id: id, type: "Section", depth: 0
-      }).first
+      @root ||= db.elements.root.run(key: id).first
     end
 
     def toc
@@ -16,17 +14,18 @@ module Docserver
     # requires {element, position, reference_id}
     def create_element(opts={})
       el = Element.create(opts[:element])
-      move opts.merge(element: el)
+      move_element opts.merge(element: el)
     end
 
     # requires {element || element_id, position, reference_id}
     def move_element(opts={})
       el = opts[:element] || Element.find(opts[:element_id])
       ref = Element.find(opts[:reference_id])
+
       case p = opts[:position]
-      when "before","after"
+      when "before", "after"
         ref.parent.insert_child(element: el, position: p, reference_id: ref.id)
-      when "prepend","append"
+      when "prepend", "append"
         ref.insert_child(element: el, position: p)
       else
         raise "Invalid position given."

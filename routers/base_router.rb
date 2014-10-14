@@ -4,13 +4,16 @@ require 'sinatra/namespace'
 require 'uri'
 require 'json'
 
+require_relative '../lib/couchdb'
+
+
 module Docserver
   class BaseRouter < Sinatra::Base
     register Sinatra::Namespace
 
     # DB Helper
     before do
-      @db = Mongo::MongoClient.new.db('docserver')
+      @db ||= CouchDB::Server.new('docserver')
     end
   end
 end

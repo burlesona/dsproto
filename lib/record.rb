@@ -2,6 +2,8 @@ require 'json'
 
 module Docserver
   class Record
+    attr_reader :attributes
+
     def initialize(attrs={})
       @attributes = attrs
     end
@@ -11,7 +13,7 @@ module Docserver
     end
 
     def to_json(opts={})
-      JSON.generate(self.to_hash)
+      JSON.generate(self.to_hash, opts)
     end
 
     def update(hash)
@@ -19,17 +21,14 @@ module Docserver
       save
     end
 
-    def save
-      data = @attributes.dup
-      id = data.delete(:id)
-      collection.update({_id: id}, data)
+    def save(opts = {})
+      doc = @attributes.clone
+      doc[:_id] = doc.delete(:id) if doc[:id]
+      db.save doc, opts
       self
     end
 
     private
-    def collection
-      self.class.collection
-    end
 
     def method_missing(name, *args, &block)
       # Getter
@@ -50,55 +49,27 @@ module Docserver
       def import(data={})
         raise "Please provide an ID\nDATA:\n#{data.inspect}" unless data[:id]
         raise "Record Already Exists:\nDATA:\n#{data.inspect}" if exists?(data[:id])
-        data[:_id] = data.delete :id
         create(data)
       end
 
-      def create(data={})
-        data[:_id] ||= new_id(data[:document_id])
-        collection.insert data
-        find( data[:_id] )
-      end
-
-      def new_id(doc_id)
-        loop do
-          ts = Time.now.to_i.to_s(32) + "-" + rand(1000).to_s(32)
-          id = doc_id ? "d#{doc_id}-#{ts}" : "d#{ts}"
-          break id unless exists?(id)
-        end
+      def create(data = {}, opts = {})
+        self.new(data).save(opts)
       end
 
       def find(id)
-        if result = collection.find_one(_id: id)
-          data = result.symbolize_keys
-        else
-          raise "Record Not Found: #{id.inspect}"
-        end
-        data = collection.find_one(_id: id).symbolize_keys
+        data = db.find id
+        raise "Record Not Found: #{id.inspect}" unless data
+
         data[:id] = data.delete :_id
         self.new(data)
       end
 
-      def where(hash={})
-        hash[:_id] = hash.delete(:id) if hash[:id]
-        data = collection.find(hash)
-        data.map do |d|
-          d.symbolize_keys!
-          d[:id] = d.delete(:_id)
-          self.new(d)
-        end
-      end
-
       def all
-        where()
+        db.elements.all.run
       end
 
       def exists?(id)
-        !!collection.find_one(_id: id)
-      end
-
-      def collection
-        db.collection( name.demodulize.downcase.pluralize )
+        db.exists? id
       end
     end
   end

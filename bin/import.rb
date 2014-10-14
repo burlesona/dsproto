@@ -1,20 +1,23 @@
 #!usr/bin/env ruby
-require_relative '../initializer'
+require 'securerandom'
 require 'rest_client'
 require 'json'
 require 'pry'
 require 'optparse'
 require 'ostruct'
 
+require_relative '../initializer'
+
 # Setup Import Options
 $options = OpenStruct.new
-$options.scholar_url = "http://local-scholar.flatworldknowledge.com:9393/api"
+# $options.scholar_url = "http://local-scholar.flatworldknowledge.com:9393/api"
+$options.scholar_url = "http://scholar.flatworldknowledge.com/api"
 
 optparser = OptionParser.new do |opts|
   opts.banner = 'Usage: ruby import.rb [options]'
 
   opts.on('-b', '--book=', 'Book Id') do |b|
-    $options.document_id = b.to_i
+    $options.document_id = b.to_i.to_s
   end
 
   opts.on('-s', '--scholar=', 'Scholar API URL') do |s|
@@ -22,17 +25,18 @@ optparser = OptionParser.new do |opts|
   end
 
   opts.on('-c', '--clean', 'Clean the database before import') do
-    Docserver::Document.collection.remove
-    Docserver::Element.collection.remove
+    db.reset!
+    `ruby ./upload-views.rb -d #{db.host} -n ../lib/js/elements`
   end
 end
+
 optparser.parse!
 
 abort 'Must specify book ID' if $options.document_id.nil?
 
 # Define Utility Methods
 def get(path,opts={})
-  url = File.join($options.scholar_url,$options.document_id.to_s,path)
+  url = File.join($options.scholar_url, $options.document_id, path)
   opts.merge({accept: :json})
   response = RestClient.get(url,opts)
   JSON.parse(response.body, symbolize_names: true) if response.code == 200
@@ -47,11 +51,7 @@ toc_hash = toc.each_with_object({}) do |c,hash|
 end
 
 # Create Document
-doc_data[:_id] = $options.document_id.to_i
-doc = Docserver::Document.create(doc_data)
-
-
-
+doc_data[:_id] = $options.document_id
 
 # Since the Scholar API is still using varying types
 # for section elements (chapter, article, appendix etc.),
@@ -59,9 +59,9 @@ doc = Docserver::Document.create(doc_data)
 
 # Here we build a complete hash representation of the document
 root = {
-  id: "#{doc.id}-root",
-  document_id: doc.id,
-  type: "Section",
+  id: doc_data[:_id],
+  document_id: doc_data[:_id],
+  type: 'Section',
   depth: 0,
   children: []
 }
@@ -69,7 +69,7 @@ top_level_ids.each do |cid|
   puts "Importing #{cid}"
   toc_data = toc_hash[cid]
   element = get("elements/#{cid}")
-  element[:type] = "Section"
+  element[:type] = 'Section'
   element[:domain] = toc_data[:domain]
   element[:previewable] = toc_data[:previewable]
   # If element is in the TOC Hash it is a chapter
@@ -78,7 +78,7 @@ top_level_ids.each do |cid|
     sections.each do |s|
       puts "Importing #{s[:id]}"
       child = get("elements/#{s[:id]}")
-      child[:type] = "Section"
+      child[:type] = 'Section'
       child[:domain] = s[:domain]
       child[:previewable] = s[:previewable]
       element[:children] << child
@@ -87,21 +87,18 @@ top_level_ids.each do |cid|
   root[:children] << element
 end
 
-def create_element(edata,depth:0)
+def create_element(edata, depth: 0, ancestors: [])
   edata[:document_id] = $options.document_id
+  edata[:depth] = depth
+  edata[:ancestors] = ancestors
+
   # First create elements for all children of sections
-  if edata[:type] == "Section"
-    edata[:depth] = depth
-    edata[:child_ids] = []
-    children = edata.delete(:children)
-    # Skip and log if a section child has no ID
-    children.each do |c|
-      if !c[:id]
-        puts "SKIPPING:\n#{c.inspect}"
-      else
-        edata[:child_ids] << c[:id]
-        create_element(c, depth: depth+1)
-      end
+  if edata[:type] == 'Section'
+    edata[:child_ids] = edata.delete(:children).map do |c|
+      c[:id] ||= SecureRandom.uuid().gsub('-', '')
+      c[:parent_id] = edata[:id]
+      create_element(c, depth: depth + 1, ancestors: ancestors + [edata[:id]])
+      c[:id]
     end
   end
   # Create the element after handling its children
@@ -112,5 +109,3 @@ end
 create_element(root)
 
 binding.pry
-
-

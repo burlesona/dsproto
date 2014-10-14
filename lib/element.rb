@@ -2,29 +2,21 @@ require_relative 'record'
 
 module Docserver
   class Element < Record
-
     def sections
       if section?
-        hash = @attributes.except(:child_ids,:deprecated)
-        if children
-          hash[:children] = children.map{|c| c.sections }.compact
-        end
+        hash = @attributes.except(:child_ids, :deprecated)
+        hash[:children] = children.map(&:sections).compact if children
         hash
       end
     end
 
     def section?
-      type == "Section"
+      type == 'Section'
     end
 
     # Note: if there is no parent, this can return a random record?
-    def parent(reload:false)
-      if reload || !defined?(@parent)
-        @parent = self.class.where({
-          document_id: document_id,
-          child_ids: id
-        }).first
-      end
+    def parent(reload: false)
+      @parent = db.find(document_id) if reload || !defined?(@parent)
       @parent
     end
 
@@ -40,24 +32,24 @@ module Docserver
 
     # Note: This is appropriate for elements that have child references
     # but it would not work for lower level containers that have embedded children
-    def insert_child(element:,position:,reference_id:nil)
+    def insert_child(element: nil, position: nil, reference_id: nil)
       # Remove previous parent if present
       element.parent.remove_child(element) if element.parent
 
       # Insert child id into child_ids list
       case position
-      when "before", "after"
-        raise "Reference ID required" unless reference_id
-        raise "Invalid Reference ID" unless child_ids.include?(reference_id)
+      when 'before', 'after'
+        raise 'Reference ID required' unless reference_id
+        raise 'Invalid Reference ID' unless child_ids.include?(reference_id)
         index = child_ids.index(reference_id)
         index += 1 if position == "after"
         child_ids.insert(index, element.id)
-      when "prepend"
+      when 'prepend'
         child_ids.unshift element.id
-      when "append"
+      when 'append'
         child_ids.push element.id
       else
-        raise "Invalid position given."
+        raise 'Invalid position given.'
       end
 
       # Save element and return updated child instance
@@ -74,7 +66,8 @@ module Docserver
         parent.remove_child(id)
         @parent = nil
       end
-      collection.remove(_id: id)
+
+      db.delete id
       self.id = nil
       true
     end
@@ -86,12 +79,14 @@ module Docserver
     end
 
     private
+
     def load_children!
-      if @attributes[:children]
-        @attributes[:children]
-      elsif ids = @attributes[:child_ids]
-        Element.where(id: {'$in' => ids}).sort_by{|e| ids.index(e.id)}
-      end
+      children = db.elements.by_ancestors.children.run(
+        startkey: [document_id, id],
+        endkey: [document_id, id, {}],
+        include_docs: true
+      )
+      children.map{|c| Element.new(c)}
     end
   end
 end
