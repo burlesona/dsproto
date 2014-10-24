@@ -10,9 +10,8 @@ Dotenv.load
 
 # Setup DB
 def db
-  c = r.connect db: 'docserver'
-  yield c
-  c.close
+  @conn ||= r.connect db: 'docserver'
+  yield @conn
 end
 
 db do |c|
