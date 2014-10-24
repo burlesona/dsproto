@@ -5,6 +5,7 @@ require 'json'
 require 'pry'
 require 'optparse'
 require 'ostruct'
+require 'benchmark'
 
 # Setup Import Options
 $options = OpenStruct.new
@@ -109,8 +110,7 @@ def create_element(edata,depth:0)
   Docserver::Element.import(edata)
 end
 
-create_element(root)
+time = Benchmark.measure { create_element(root) }
+puts "\n\nImported Document in:\n#{time}"
 
 binding.pry
-
-
