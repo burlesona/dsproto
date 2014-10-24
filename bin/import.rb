@@ -5,13 +5,14 @@ require 'json'
 require 'pry'
 require 'optparse'
 require 'ostruct'
+require 'benchmark'
 
 require_relative '../initializer'
 
 # Setup Import Options
 $options = OpenStruct.new
-# $options.scholar_url = "http://local-scholar.flatworldknowledge.com:9393/api"
-$options.scholar_url = "http://scholar.flatworldknowledge.com/api"
+$options.scholar_url = "http://local-scholar.flatworldknowledge.com:9393/api"
+# $options.scholar_url = "http://scholar.flatworldknowledge.com/api"
 
 optparser = OptionParser.new do |opts|
   opts.banner = 'Usage: ruby import.rb [options]'
@@ -106,6 +107,7 @@ def create_element(edata, depth: 0, ancestors: [])
   Docserver::Element.import(edata)
 end
 
-create_element(root)
+time = Benchmark.measure { create_element(root) }
+puts "\n\nImported Document in:\n#{time}"
 
 binding.pry
