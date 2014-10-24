@@ -107,8 +107,11 @@ def create_element(edata, depth: 0, ancestors: [])
   Docserver::Element.import(edata)
 end
 
+<<<<<<< HEAD
 # create_element(root)
 
+=======
+>>>>>>> 45c4440b3006567f2c1d494feaaff7a7f0d98f71
 time = Benchmark.measure { create_element(root) }
 puts "\n\nImported Document in:\n#{time}"
 
