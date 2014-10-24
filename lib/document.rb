@@ -4,11 +4,19 @@ module Docserver
   class Document < Record
 
     def root
-      @root ||= db.elements.root.run(key: id).first
+      @root ||= Element.new(db.elements.root.run(
+        startkey: id,
+        endkey: id,
+        include_docs: true
+      ).first[:doc])
     end
 
-    def toc
-      root.sections
+    def toc(depth = 2)
+      db.elements.by_depth.toc.run(
+        startkey: [root.id],
+        endkey: [root.id, depth],
+        include_docs: true
+      )
     end
 
     # requires {element, position, reference_id}

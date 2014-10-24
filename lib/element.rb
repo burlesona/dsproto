@@ -11,7 +11,7 @@ module Docserver
     end
 
     def section?
-      type == 'Section'
+      ['Book', 'Section'].include? type
     end
 
     # Note: if there is no parent, this can return a random record?
@@ -81,9 +81,16 @@ module Docserver
     private
 
     def load_children!
+      startkey = [document_id]
+      startkey << id if id != document_id
+
+      endkey = [document_id]
+      endkey << id if id != document_id
+      endkey << {}
+
       children = db.elements.by_ancestors.children.run(
-        startkey: [document_id, id],
-        endkey: [document_id, id, {}],
+        startkey: startkey,
+        endkey: endkey,
         include_docs: true
       )
       children.map{|c| Element.new(c)}

@@ -43,6 +43,7 @@ module CouchDB
         @server.get("_design/#{@name}/_view/#{view_name}", *args)
       end
 
+      res = res[:rows] if res.is_a?(Hash) && res[:rows]
       return res unless block_given?
       yield res
     end

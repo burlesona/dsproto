@@ -6,6 +6,7 @@ module Docserver
 
     def initialize(attrs={})
       @attributes = attrs
+      @attributes[:id] = @attributes.delete(:_id) if @attributes[:_id]
     end
 
     def to_hash

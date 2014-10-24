@@ -5,13 +5,14 @@ require 'json'
 require 'pry'
 require 'optparse'
 require 'ostruct'
+require 'benchmark'
 
 require_relative '../initializer'
 
 # Setup Import Options
 $options = OpenStruct.new
-# $options.scholar_url = "http://local-scholar.flatworldknowledge.com:9393/api"
-$options.scholar_url = "http://scholar.flatworldknowledge.com/api"
+$options.scholar_url = "http://local-scholar.flatworldknowledge.com:9393/api"
+# $options.scholar_url = "http://scholar.flatworldknowledge.com/api"
 
 optparser = OptionParser.new do |opts|
   opts.banner = 'Usage: ruby import.rb [options]'
@@ -61,7 +62,7 @@ doc_data[:_id] = $options.document_id
 root = {
   id: doc_data[:_id],
   document_id: doc_data[:_id],
-  type: 'Section',
+  type: 'Book',
   depth: 0,
   children: []
 }
@@ -93,7 +94,7 @@ def create_element(edata, depth: 0, ancestors: [])
   edata[:ancestors] = ancestors
 
   # First create elements for all children of sections
-  if edata[:type] == 'Section'
+  if ['Book', 'Section'].include? edata[:type]
     edata[:child_ids] = edata.delete(:children).map do |c|
       c[:id] ||= SecureRandom.uuid().gsub('-', '')
       c[:parent_id] = edata[:id]
@@ -106,6 +107,9 @@ def create_element(edata, depth: 0, ancestors: [])
   Docserver::Element.import(edata)
 end
 
-create_element(root)
+# create_element(root)
+
+time = Benchmark.measure { create_element(root) }
+puts "\n\nImported Document in:\n#{time}"
 
 binding.pry
